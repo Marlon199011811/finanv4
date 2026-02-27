@@ -7,9 +7,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
-/* =============================================
-   FINANCEFLOW — CORPORATE LIGHT THEME
-   ============================================= */
 :root {
   --green:       #16a34a;
   --green-light: #dcfce7;
@@ -24,7 +21,6 @@
   --amber:       #d97706;
   --amber-light: #fef3c7;
   --amber-mid:   #fde68a;
-
   --bg:       #f1f5f9;
   --surface:  #ffffff;
   --surface2: #f8fafc;
@@ -34,12 +30,10 @@
   --text:     #0f172a;
   --text-muted: #64748b;
   --text-dim:   #94a3b8;
-
   --shadow-xs: 0 1px 3px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.04);
   --shadow-sm: 0 2px 8px rgba(15,23,42,.08),0 1px 3px rgba(15,23,42,.04);
   --shadow:    0 4px 16px rgba(15,23,42,.1),0 2px 6px rgba(15,23,42,.06);
   --shadow-lg: 0 12px 40px rgba(15,23,42,.14);
-
   --radius:    12px;
   --radius-sm: 8px;
   --radius-xs: 6px;
@@ -127,7 +121,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 .card-saldo   .card-icon{background:var(--blue-light)}
 .card-pendente .card-icon{background:var(--amber-light)}
 .card-label{font-size:.71rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:3px}
-.card-value{font-family:var(--font-head);font-size:1.55rem;font-weight:700;letter-spacing:-.025em;line-height:1.1;color:var(--text)}
+.card-value{font-family:var(--font-head);font-size:1.55rem;font-weight:700;letter-spacing:-.025em;line-height:1.1;color:var(--text);transition:all .3s ease}
 .card-meta{font-size:.73rem;color:var(--text-muted);margin-top:5px}
 .card-receita  .card-value{color:var(--green)}
 .card-despesa  .card-value{color:var(--red)}
@@ -138,6 +132,10 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 .card-despesa  .card-accent{background:var(--red)}
 .card-saldo    .card-accent{background:var(--blue)}
 .card-pendente .card-accent{background:var(--amber)}
+
+/* Card update flash animation */
+@keyframes cardPulse{0%{opacity:.5;transform:scale(.97)}100%{opacity:1;transform:scale(1)}}
+.card-value.updating{animation:cardPulse .25s ease forwards}
 
 /* ===== SECTION BLOCK ===== */
 .section-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px 24px;margin-bottom:18px;box-shadow:var(--shadow-xs)}
@@ -277,6 +275,31 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
   border-color: var(--blue);
 }
 
+/* ===== CARD MONTH LABEL ===== */
+.cards-month-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  margin-top: -6px;
+}
+.cards-month-label span {
+  font-size: .76rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.cards-month-pill {
+  background: var(--blue-light);
+  color: var(--blue);
+  border: 1px solid var(--blue-mid);
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  transition: all .25s ease;
+}
+
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -384,6 +407,12 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
           <div class="page-subtitle" id="pageSubtitle">Carregando...</div>
         </div>
         <button class="btn-toggle-form" id="toggleForm">+ Novo Lançamento</button>
+      </div>
+
+      <!-- INDICADOR DE MÊS DOS CARDS — sincronizado com o filtro -->
+      <div class="cards-month-label">
+        <span>Resumo de</span>
+        <span class="cards-month-pill" id="cardsMonthPill">—</span>
       </div>
 
       <div class="summary-cards">
@@ -684,18 +713,13 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 <script>
 /* =============================================
    FINANCEFLOW — JAVASCRIPT COMPLETO
-   URL da planilha integrada diretamente
    ============================================= */
 
-// ── Credenciais de acesso ──────────────────────
 const LOGIN_USER     = 'admin';
 const LOGIN_PASS     = '7x94BugC';
 const SESSION_KEY    = 'ff_session';
-
-// ── URL da planilha (hard-coded) ───────────────
 const API_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycbyCXINZyN-b7g8Y4dNE9LR7aWyLT2Icv82zxEBmHFQz69_OF31sE98pl-C5ewKTZsY/exec';
 
-// ── Estado global ──────────────────────────────
 const State = {
   lancamentos: [],
   apiUrl: API_URL_DEFAULT,
@@ -706,9 +730,6 @@ const State = {
   charts: {},
 };
 
-/* =============================================
-   BOOT
-   ============================================= */
 document.addEventListener('DOMContentLoaded', () => {
   setupLogin();
   setupLogout();
@@ -718,9 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-/* =============================================
-   LOGIN / LOGOUT
-   ============================================= */
+/* ===== LOGIN / LOGOUT ===== */
 function setupLogin() {
   const overlay  = document.getElementById('loginOverlay');
   const form     = document.getElementById('loginForm');
@@ -744,7 +763,6 @@ function setupLogin() {
     btn.disabled = true;
     btnTxt.textContent = 'Verificando...';
     spinner.style.display = 'inline-block';
-
     setTimeout(() => {
       if (user === LOGIN_USER && pass === LOGIN_PASS) {
         sessionStorage.setItem(SESSION_KEY, '1');
@@ -795,11 +813,8 @@ function setupLogout() {
   });
 }
 
-/* =============================================
-   INICIALIZAÇÃO DO APP
-   ============================================= */
+/* ===== INIT ===== */
 function initApp() {
-  // Carrega URL salva ou usa padrão
   const saved = localStorage.getItem('ff_api_url');
   State.apiUrl = saved || API_URL_DEFAULT;
   const apiInput = document.getElementById('apiUrl');
@@ -816,9 +831,6 @@ function initApp() {
   loadData();
 }
 
-/* =============================================
-   HEADER DATE
-   ============================================= */
 function setupHeaderDate() {
   const now = new Date();
   const s   = now.toLocaleDateString('pt-BR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
@@ -826,9 +838,7 @@ function setupHeaderDate() {
   if (el) el.textContent = s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/* =============================================
-   TABS
-   ============================================= */
+/* ===== TABS ===== */
 function toggleAllLancamentos() {
   const body = document.getElementById('allLancamentosBody');
   const chevron = document.getElementById('allLancamentosChevron');
@@ -849,9 +859,7 @@ function setupTabs() {
   });
 }
 
-/* =============================================
-   CARREGAR DADOS
-   ============================================= */
+/* ===== CARREGAR DADOS ===== */
 async function loadData() {
   showLoading(true);
   if (State.apiUrl) {
@@ -859,7 +867,6 @@ async function loadData() {
       const res  = await fetchWithTimeout(`${State.apiUrl}?action=get`, 8000);
       const data = await res.json();
       if (Array.isArray(data)) {
-        // Limpa cache antigo e salva dados normalizados
         localStorage.removeItem('ff_data');
         State.lancamentos = data.map(normalizeItem);
         saveLocal();
@@ -882,22 +889,15 @@ async function loadData() {
   updateCharts();
 }
 
-/**
- * Normaliza um objeto vindo da planilha para o padrão interno.
- * A planilha pode retornar campos com nomes variados (maiúsculas,
- * acentos, pt-BR) — aqui mapeamos tudo para minúsculo sem acento.
- */
 function normalizeItem(raw) {
-  // Cria um mapa com chaves totalmente normalizadas (minúsculo, sem acento)
   const norm = {};
   Object.keys(raw).forEach(k => {
     const key = k.toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
-      .replace(/\s+/g, '');                              // remove espaços
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '');
     norm[key] = raw[k];
   });
 
-  // Mapeamento: campo interno → possíveis chaves na planilha
   const get = (...keys) => {
     for (const k of keys) {
       const kn = k.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'');
@@ -920,39 +920,24 @@ function normalizeItem(raw) {
   };
 }
 
-/** Converte qualquer formato de data para YYYY-MM-DD */
 function parseDateToISO(str) {
   if (!str) return '';
   str = String(str).trim();
-
-  // Já está no formato correto YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-
-  // Formato DD/MM/YYYY
   const dmy = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (dmy) return `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
-
-  // Formato MM/DD/YYYY (americano)
-  const mdy = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (mdy) return `${mdy[3]}-${mdy[1].padStart(2,'0')}-${mdy[2].padStart(2,'0')}`;
-
-  // String longa tipo "Wed Mar 11 2026 00:00:00 GMT-0400..."
-  // ou "2026-03-11T00:00:00.000Z"
   try {
     const d = new Date(str);
     if (!isNaN(d.getTime())) {
-      // Usa UTC para evitar problema de fuso horário
       const y = d.getUTCFullYear();
       const m = String(d.getUTCMonth() + 1).padStart(2, '0');
       const day = String(d.getUTCDate()).padStart(2, '0');
       return `${y}-${m}-${day}`;
     }
   } catch(_) {}
-
-  return str; // fallback: devolve como veio
+  return str;
 }
 
-/** Garante capitalização correta do tipo (Receita / Despesa) */
 function capitalizeTipo(v) {
   const s = String(v).trim().toLowerCase();
   if (s === 'receita' || s === 'income' || s === 'entrada') return 'Receita';
@@ -960,7 +945,6 @@ function capitalizeTipo(v) {
   return v.charAt(0).toUpperCase() + v.slice(1);
 }
 
-/** Garante capitalização correta do status (Pago / Pendente) */
 function capitalizeStatus(v) {
   const s = String(v).trim().toLowerCase();
   if (s === 'pago' || s === 'paid' || s === 'concluido' || s === 'concluído') return 'Pago';
@@ -975,9 +959,7 @@ function setApiStatus(online) {
   el.querySelector('.status-label').textContent = online ? 'API Online' : 'Modo Offline';
 }
 
-/* =============================================
-   FORMULÁRIO DE LANÇAMENTO
-   ============================================= */
+/* ===== FORMULÁRIO ===== */
 function setupForm() {
   const form      = document.getElementById('lancamentoForm');
   const toggleBtn = document.getElementById('toggleForm');
@@ -996,7 +978,6 @@ function setupForm() {
   });
 
   cancelBtn.addEventListener('click', () => resetForm());
-
   valorEl.addEventListener('input', () => maskCurrency(valorEl));
   form.addEventListener('submit', async e => { e.preventDefault(); await submitLancamento(); });
 }
@@ -1058,26 +1039,26 @@ async function submitLancamento() {
   btn.disabled = false; btn.textContent = '✓ Salvar Lançamento';
 }
 
-/* =============================================
-   FILTROS
-   ============================================= */
+/* ===== FILTROS ===== */
 function setupFilters() {
   document.getElementById('searchFilter').addEventListener('input', renderCurrentMonthTable);
   document.getElementById('statusFilter').addEventListener('change', renderCurrentMonthTable);
   document.getElementById('monthFilter').addEventListener('change', () => {
+    // ── CORREÇÃO PRINCIPAL ──
+    // Quando o filtro de mês muda, atualiza tabela + badge + cards + subtítulo
     updateMonthBadge();
     renderCurrentMonthTable();
+    updateSummary();          // ← cards agora sincronizam com o filtro
+    updatePageSubtitle();
   });
   document.getElementById('allTypeFilter').addEventListener('change', renderAllTable);
   document.getElementById('allStatusFilter').addEventListener('change', renderAllTable);
 }
 
-/** Popula o select de meses com os meses que têm despesas */
 function populateMonthFilter() {
   const select = document.getElementById('monthFilter');
   if (!select) return;
 
-  // Coleta todos os meses/anos com despesas
   const months = new Set();
   State.lancamentos.forEach(l => {
     if (l.vencimento) {
@@ -1089,14 +1070,7 @@ function populateMonthFilter() {
     }
   });
 
-  // Ordena decrescente (mais recente primeiro)
   const sorted = Array.from(months).sort((a,b) => b.localeCompare(a));
-
-  // Mês atual como padrão
-  const now = new Date();
-  const currentKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-
-  // Reconstrói as opções preservando a seleção atual
   const currentVal = select.value || 'atual';
   select.innerHTML = '<option value="atual">📅 Mês Atual</option>';
 
@@ -1111,14 +1085,12 @@ function populateMonthFilter() {
     select.appendChild(opt);
   });
 
-  // Restaura seleção
   if (currentVal && currentVal !== 'atual') {
     select.value = currentVal;
-    if (!select.value) select.value = 'atual'; // fallback
+    if (!select.value) select.value = 'atual';
   }
 }
 
-/** Retorna {mes, ano} com base no filtro selecionado */
 function getSelectedMonthYear() {
   const val = document.getElementById('monthFilter')?.value || 'atual';
   if (val === 'atual') {
@@ -1129,17 +1101,24 @@ function getSelectedMonthYear() {
   return { mes: parseInt(m) - 1, ano: parseInt(y) };
 }
 
-/** Atualiza o badge do mês conforme filtro selecionado */
-function updateMonthBadge() {
+/** Formata o label do mês selecionado */
+function getSelectedMonthLabel() {
   const { mes, ano } = getSelectedMonthYear();
   const label = new Date(ano, mes, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
-  const mb = document.getElementById('monthBadge');
-  if (mb) mb.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-/* =============================================
-   TABELA — DESPESAS DO MÊS ATUAL
-   ============================================= */
+function updateMonthBadge() {
+  const label = getSelectedMonthLabel();
+  // Badge na tabela de despesas
+  const mb = document.getElementById('monthBadge');
+  if (mb) mb.textContent = label;
+  // Pílula acima dos cards — reflete o filtro ativo
+  const pill = document.getElementById('cardsMonthPill');
+  if (pill) pill.textContent = label;
+}
+
+/* ===== TABELA — DESPESAS DO MÊS ===== */
 function renderCurrentMonthTable() {
   const { mes, ano } = getSelectedMonthYear();
   const search = document.getElementById('searchFilter').value.toLowerCase();
@@ -1161,12 +1140,11 @@ function renderCurrentMonthTable() {
   tbody.innerHTML = '';
   empty.style.display = items.length === 0 ? 'block' : 'none';
 
-  // Total do mês filtrado
   const totalMes = items.reduce((s, l) => s + parseFloat(l.valor||0), 0);
   const sub = document.getElementById('despesasSubtitle');
   if (sub) {
-    const label = new Date(ano, mes, 1).toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
-    sub.textContent = `${items.length} despesa(s) em ${label.charAt(0).toUpperCase()+label.slice(1)} — Total: ${fmtCur(totalMes)}`;
+    const label = getSelectedMonthLabel();
+    sub.textContent = `${items.length} despesa(s) em ${label} — Total: ${fmtCur(totalMes)}`;
   }
 
   items.forEach(item => {
@@ -1189,9 +1167,7 @@ function renderCurrentMonthTable() {
   updateMonthBadge();
 }
 
-/* =============================================
-   TABELA — TODOS OS LANÇAMENTOS
-   ============================================= */
+/* ===== TABELA — TODOS OS LANÇAMENTOS ===== */
 function renderAllTable() {
   const type   = document.getElementById('allTypeFilter').value;
   const status = document.getElementById('allStatusFilter').value;
@@ -1242,14 +1218,12 @@ function updatePageSubtitle() {
     const d = new Date(l.vencimento + 'T00:00:00');
     return d.getMonth() === mes && d.getFullYear() === ano;
   }).length;
-  const mn  = new Date(ano, mes, 1).toLocaleDateString('pt-BR', {month:'long',year:'numeric'});
+  const label = getSelectedMonthLabel();
   const el  = document.getElementById('pageSubtitle');
-  if (el) el.textContent = `${tot} lançamento(s) em ${mn.charAt(0).toUpperCase()+mn.slice(1)}`;
+  if (el) el.textContent = `${tot} lançamento(s) em ${label}`;
 }
 
-/* =============================================
-   AÇÕES DA TABELA
-   ============================================= */
+/* ===== AÇÕES DA TABELA ===== */
 async function markAsPago(id) {
   const item = State.lancamentos.find(l => l.id === id);
   if (!item) return;
@@ -1272,9 +1246,7 @@ async function deleteItem(id) {
   showToast('Lançamento excluído.', 'info');
 }
 
-/* =============================================
-   MODAL EDIÇÃO
-   ============================================= */
+/* ===== MODAL EDIÇÃO ===== */
 function setupEditForm() {
   document.getElementById('editForm').addEventListener('submit', async e => { e.preventDefault(); await saveEdit(); });
   document.getElementById('modalClose').addEventListener('click', closeModal);
@@ -1319,13 +1291,16 @@ async function saveEdit() {
   showToast('Lançamento atualizado!', 'success');
 }
 
-/* =============================================
-   RESUMO — MÊS ATUAL
-   ============================================= */
+/* ===== RESUMO DOS CARDS ===== */
+/**
+ * Atualiza os 4 cards de resumo com base no mês/ano selecionado no filtro.
+ * Agora é chamado sempre que o filtro de mês muda, mantendo os cards
+ * em sincronia com a tabela de despesas e a pílula de mês.
+ */
 function updateSummary() {
   const { mes, ano } = getSelectedMonthYear();
-  const now = new Date(ano, mes, 1);
 
+  // Filtra lançamentos do mês/ano selecionado
   const doMes = State.lancamentos.filter(l => {
     const d = new Date(l.vencimento + 'T00:00:00');
     return d.getMonth() === mes && d.getFullYear() === ano;
@@ -1340,23 +1315,40 @@ function updateSummary() {
   const totP = pends.reduce((a,l) => a + parseFloat(l.valor||0), 0);
   const saldo = totR - totD;
 
-  document.getElementById('totalReceitas').textContent = fmtCur(totR);
-  document.getElementById('totalDespesas').textContent = fmtCur(totD);
-  document.getElementById('totalPendente').textContent = fmtCur(totP);
+  // Aplica animação de atualização nos valores
+  const animateCard = (id, value) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('updating');
+    void el.offsetWidth; // força reflow para reiniciar animação
+    el.classList.add('updating');
+    el.textContent = value;
+  };
+
+  animateCard('totalReceitas', fmtCur(totR));
+  animateCard('totalDespesas', fmtCur(totD));
+  animateCard('totalPendente', fmtCur(totP));
 
   const sEl = document.getElementById('saldoAtual');
-  sEl.style.color = saldo >= 0 ? 'var(--green)' : 'var(--red)';
-  sEl.textContent = (saldo < 0 ? '−' : '') + fmtCur(Math.abs(saldo));
+  if (sEl) {
+    sEl.style.color = saldo >= 0 ? 'var(--green)' : 'var(--red)';
+    sEl.classList.remove('updating');
+    void sEl.offsetWidth;
+    sEl.classList.add('updating');
+    sEl.textContent = (saldo < 0 ? '−' : '') + fmtCur(Math.abs(saldo));
+  }
 
   document.getElementById('metaReceitas').textContent = `${recs.length} lançamento(s)`;
   document.getElementById('metaDespesas').textContent = `${desps.length} lançamento(s)`;
   document.getElementById('metaSaldo').textContent    = saldo >= 0 ? 'Saldo positivo ✓' : 'Saldo negativo ⚠️';
   document.getElementById('metaPendente').textContent = `${pends.length} a vencer`;
+
+  // Atualiza também a pílula de mês acima dos cards
+  const pill = document.getElementById('cardsMonthPill');
+  if (pill) pill.textContent = getSelectedMonthLabel();
 }
 
-/* =============================================
-   GRÁFICOS
-   ============================================= */
+/* ===== GRÁFICOS ===== */
 function setupChartFilters() {
   document.querySelectorAll('#periodFilter .pill').forEach(p => {
     p.addEventListener('click', () => {
@@ -1446,9 +1438,7 @@ function chartOpts() {
   };
 }
 
-/* =============================================
-   API — GOOGLE APPS SCRIPT
-   ============================================= */
+/* ===== API ===== */
 async function apiCreate(item) {
   if (!State.apiUrl) return true;
   try {
@@ -1482,15 +1472,11 @@ async function apiDelete(id) {
   } catch(e) { console.warn('apiDelete',e); return false; }
 }
 
-/* =============================================
-   LOCALSTORAGE (fallback offline)
-   ============================================= */
+/* ===== LOCAL STORAGE ===== */
 function saveLocal() { localStorage.setItem('ff_data', JSON.stringify(State.lancamentos)); }
 function loadLocal() { try { return (JSON.parse(localStorage.getItem('ff_data'))||[]).map(normalizeItem); } catch(_){ return []; } }
 
-/* =============================================
-   CONFIGURAÇÕES
-   ============================================= */
+/* ===== CONFIGURAÇÕES ===== */
 function setupConfigPage() {
   document.getElementById('saveApiUrl').addEventListener('click', async () => {
     const url = document.getElementById('apiUrl').value.trim();
@@ -1538,9 +1524,6 @@ function renderAppsScriptCode() {
   if (el) el.textContent = APPS_SCRIPT_CODE;
 }
 
-/* =============================================
-   CÓDIGO DO APPS SCRIPT (string constante)
-   ============================================= */
 const APPS_SCRIPT_CODE = `// FinanceFlow — Google Apps Script Web App
 const SHEET_NAME = 'Lancamentos';
 
@@ -1609,9 +1592,7 @@ function json(data) {
   return o;
 }`;
 
-/* =============================================
-   UTILITÁRIOS
-   ============================================= */
+/* ===== UTILITÁRIOS ===== */
 function genId()        { return 'ff_'+Date.now()+'_'+Math.random().toString(36).slice(2,8); }
 function todayStr()     { return new Date().toISOString().split('T')[0]; }
 function fmtCur(v)      { return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(parseFloat(v)||0); }
